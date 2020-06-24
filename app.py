@@ -22,12 +22,17 @@ class Usuario(db.Model):
     password = db.Column(db.String, nullable=True)
 
 
+def usuario_a_dict(usuario):
+    return {'id': usuario.id, 'nombre': usuario.nombre}
+
+
 @app.route('/')
 def index():
     return '<h1>Hola</h1>'
 
 
 @app.route('/register', methods=['POST'])
+@app.route('/users', methods=['POST'])
 def register():
     datos = request.get_json()
 
@@ -36,7 +41,7 @@ def register():
     db.session.add(usuario)
     db.session.commit()
 
-    return {'id': 1, 'nombre': usuario.nombre}, 201
+    return usuario_a_dict(usuario), 201
 
 
 @app.route('/users', methods=['GET'])
@@ -46,9 +51,51 @@ def list():
     respuesta = []
 
     for usuario in usuarios:
-        respuesta.append({
-            'id': usuario.id,
-            'nombre': usuario.nombre
-        })
+        respuesta.append(usuario_a_dict(usuario))
 
     return jsonify(respuesta), 200
+
+
+@app.route('/users/<id>', methods=['GET'])
+def view(id):
+    usuario = Usuario.query.get_or_404(id)
+
+    return usuario_a_dict(usuario), 200
+
+
+@app.route('/users/<id>', methods=['PUT'])
+def update(id):
+    usuario = Usuario.query.get_or_404(id)
+    datos = request.get_json()
+
+    usuario.nombre = datos['nombre']
+    usuario.password = datos['password']
+
+    db.session.add(usuario)
+    db.session.commit()
+
+    return usuario_a_dict(usuario), 200
+
+
+@app.route('/users/<id>', methods=['PATCH'])
+def patch(id):
+    usuario = Usuario.query.get_or_404(id)
+    datos = request.get_json()
+
+    usuario.nombre = datos.get('nombre', usuario.nombre)
+    usuario.password = datos.get('password', usuario.password)
+
+    db.session.add(usuario)
+    db.session.commit()
+
+    return usuario_a_dict(usuario), 200
+
+
+@app.route('/users/<id>', methods=['DELETE'])
+def delete(id):
+    usuario = Usuario.query.get_or_404(id)
+
+    db.session.delete(usuario)
+    db.session.commit()
+
+    return '', 204
