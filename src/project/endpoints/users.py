@@ -1,42 +1,20 @@
-from flask import Flask, request, jsonify
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
+from flask import request, jsonify, Blueprint
+from project import db
+from project.models import Usuario
 
 
-class Config:
-    # protocolo://usuario:password@host:puerto/basededatos
-    SQLALCHEMY_DATABASE_URI = 'postgres://fgutierrez:optativo123@35.224.193.212:5432/fgutierrez'
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-
-
-db = SQLAlchemy()
-migrate = Migrate()
-app = Flask(__name__)
-
-app.config.from_object(Config)
-
-db.init_app(app)
-migrate.init_app(app, db)
-
-
-class Usuario(db.Model):
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    nombre = db.Column(db.String, nullable=False)
-    password = db.Column(db.String, nullable=False)
-    correo = db.Column(db.String, nullable=False)
+blueprint = Blueprint('usuarios', __name__)
 
 
 def usuario_a_dict(usuario):
-    return {'id': usuario.id, 'nombre': usuario.nombre, 'correo': usuario.correo}
+    return {
+        'id': usuario.id,
+        'nombre': usuario.nombre,
+        'correo': usuario.correo}
 
 
-@app.route('/')
-def index():
-    return '<h1>Hola</h1>'
-
-
-@app.route('/register', methods=['POST'])
-@app.route('/users', methods=['POST'])
+@blueprint.route('/register', methods=['POST'])
+@blueprint.route('/users', methods=['POST'])
 def register():
     datos = request.get_json()
 
@@ -48,7 +26,7 @@ def register():
     return usuario_a_dict(usuario), 201
 
 
-@app.route('/users', methods=['GET'])
+@blueprint.route('/users', methods=['GET'])
 def list():
     usuarios = Usuario.query.all()
 
@@ -60,14 +38,14 @@ def list():
     return jsonify(respuesta), 200
 
 
-@app.route('/users/<id>', methods=['GET'])
+@blueprint.route('/users/<id>', methods=['GET'])
 def view(id):
     usuario = Usuario.query.get_or_404(id)
 
     return usuario_a_dict(usuario), 200
 
 
-@app.route('/users/<id>', methods=['PUT'])
+@blueprint.route('/users/<id>', methods=['PUT'])
 def update(id):
     usuario = Usuario.query.get_or_404(id)
     datos = request.get_json()
@@ -82,7 +60,7 @@ def update(id):
     return usuario_a_dict(usuario), 200
 
 
-@app.route('/users/<id>', methods=['PATCH'])
+@blueprint.route('/users/<id>', methods=['PATCH'])
 def patch(id):
     usuario = Usuario.query.get_or_404(id)
     datos = request.get_json()
@@ -97,7 +75,7 @@ def patch(id):
     return usuario_a_dict(usuario), 200
 
 
-@app.route('/users/<id>', methods=['DELETE'])
+@blueprint.route('/users/<id>', methods=['DELETE'])
 def delete(id):
     usuario = Usuario.query.get_or_404(id)
 
