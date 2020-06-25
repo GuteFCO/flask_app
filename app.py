@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 
 
 class Config:
@@ -9,21 +10,24 @@ class Config:
 
 
 db = SQLAlchemy()
+migrate = Migrate()
 app = Flask(__name__)
 
 app.config.from_object(Config)
 
 db.init_app(app)
+migrate.init_app(app, db)
 
 
 class Usuario(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    nombre = db.Column(db.String, nullable=True)
-    password = db.Column(db.String, nullable=True)
+    nombre = db.Column(db.String, nullable=False)
+    password = db.Column(db.String, nullable=False)
+    correo = db.Column(db.String, nullable=False)
 
 
 def usuario_a_dict(usuario):
-    return {'id': usuario.id, 'nombre': usuario.nombre}
+    return {'id': usuario.id, 'nombre': usuario.nombre, 'correo': usuario.correo}
 
 
 @app.route('/')
@@ -70,6 +74,7 @@ def update(id):
 
     usuario.nombre = datos['nombre']
     usuario.password = datos['password']
+    usuario.correo = datos['correo']
 
     db.session.add(usuario)
     db.session.commit()
@@ -84,6 +89,7 @@ def patch(id):
 
     usuario.nombre = datos.get('nombre', usuario.nombre)
     usuario.password = datos.get('password', usuario.password)
+    usuario.correo = datos.get('correo', usuario.correo)
 
     db.session.add(usuario)
     db.session.commit()
