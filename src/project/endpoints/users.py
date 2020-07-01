@@ -71,9 +71,10 @@ def list():
 
 
 @blueprint.route('/users/<id>', methods=['GET'])
-@autenticar
 def view(id):
     check_response = check_token()
+    if check_response is False:
+        return 'Unauthorized', 401
 
     if str(check_response['sub']) != str(id):
         return 'Forbidden', 403
@@ -84,8 +85,10 @@ def view(id):
 
 
 @blueprint.route('/users/<id>', methods=['PUT'])
-@autenticar
 def update(id):
+    if check_token() is False:
+        return 'Unauthorized', 401
+
     usuario = Usuario.query.get_or_404(id)
     datos = request.get_json()
 
@@ -100,8 +103,10 @@ def update(id):
 
 
 @blueprint.route('/users/<id>', methods=['PATCH'])
-@autenticar
 def patch(id):
+    if check_token() is False:
+        return 'Unauthorized', 401
+
     usuario = Usuario.query.get_or_404(id)
     datos = request.get_json()
 
@@ -116,8 +121,10 @@ def patch(id):
 
 
 @blueprint.route('/users/<id>', methods=['DELETE'])
-@autenticar
 def delete(id):
+    if check_token() is False:
+        return 'Unauthorized', 401
+
     usuario = Usuario.query.get_or_404(id)
 
     db.session.delete(usuario)
