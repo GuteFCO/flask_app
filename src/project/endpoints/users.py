@@ -1,3 +1,5 @@
+import datetime
+import jwt
 from flask import request, jsonify, Blueprint
 from project import db
 from project.models import Usuario
@@ -11,6 +13,35 @@ def usuario_a_dict(usuario):
         'id': usuario.id,
         'nombre': usuario.nombre,
         'correo': usuario.correo}
+
+
+def check_token():
+    authorization = request.headers.get('Authorization')
+
+    if authorization is None:
+        return False
+
+    partes = authorization.split(' ')
+    if len(partes) != 2:
+        return False
+
+    if partes[0] != 'Bearer':
+        return False
+
+    token = partes[1]
+
+    try:
+        return jwt.decode(token, '123456')
+    except:
+        return False
+
+
+def autenticar(f):
+    def wrapper():
+        if check_token() is False:
+            return 'Unauthorized', 401
+        return f()
+    return wrapper
 
 
 @blueprint.route('/register', methods=['POST'])
@@ -27,6 +58,7 @@ def register():
 
 
 @blueprint.route('/users', methods=['GET'])
+@autenticar
 def list():
     usuarios = Usuario.query.all()
 
@@ -39,13 +71,20 @@ def list():
 
 
 @blueprint.route('/users/<id>', methods=['GET'])
+@autenticar
 def view(id):
+    check_response = check_token()
+
+    if str(check_response['sub']) != str(id):
+        return 'Forbidden', 403
+
     usuario = Usuario.query.get_or_404(id)
 
     return usuario_a_dict(usuario), 200
 
 
 @blueprint.route('/users/<id>', methods=['PUT'])
+@autenticar
 def update(id):
     usuario = Usuario.query.get_or_404(id)
     datos = request.get_json()
@@ -61,6 +100,7 @@ def update(id):
 
 
 @blueprint.route('/users/<id>', methods=['PATCH'])
+@autenticar
 def patch(id):
     usuario = Usuario.query.get_or_404(id)
     datos = request.get_json()
@@ -76,6 +116,7 @@ def patch(id):
 
 
 @blueprint.route('/users/<id>', methods=['DELETE'])
+@autenticar
 def delete(id):
     usuario = Usuario.query.get_or_404(id)
 
@@ -83,3 +124,23 @@ def delete(id):
     db.session.commit()
 
     return '', 204
+
+
+@blueprint.route('/login', methods=['GET', 'POST'])
+def login():
+    datos = request.get_json()
+
+    correo = datos['correo']
+    password = datos['password']
+
+    usuario = Usuario.query.filter_by(correo=correo, password=password).first()
+
+    if usuario is None:
+        return 'Not found', 404
+
+    payload = {
+        'sub': usuario.id,
+        'iat': datetime.datetime.now()
+    }
+
+    return jwt.encode(payload, '123456', algorithm='HS256')
