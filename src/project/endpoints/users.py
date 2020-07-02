@@ -1,18 +1,13 @@
 import datetime
 import jwt
-from flask import request, jsonify, Blueprint
+from functools import wraps
+from flask import request, jsonify, Blueprint, current_app
 from project import db
 from project.models import Usuario
+from project.schemas import usuario_schema, empresa_schema
 
 
 blueprint = Blueprint('usuarios', __name__)
-
-
-def usuario_a_dict(usuario):
-    return {
-        'id': usuario.id,
-        'nombre': usuario.nombre,
-        'correo': usuario.correo}
 
 
 def check_token():
@@ -31,100 +26,80 @@ def check_token():
     token = partes[1]
 
     try:
-        return jwt.decode(token, '123456')
+        return jwt.decode(token, current_app.config['SECRET'])
     except:
         return False
 
 
 def autenticar(f):
-    def wrapper():
-        if check_token() is False:
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        check_response = check_token()
+        if check_response is False:
             return 'Unauthorized', 401
-        return f()
+        return f(check_response, *args, **kwargs)
     return wrapper
 
 
 @blueprint.route('/register', methods=['POST'])
 @blueprint.route('/users', methods=['POST'])
 def register():
-    datos = request.get_json()
-
-    usuario = Usuario(**datos)
+    usuario = usuario_schema.load(request.json)
 
     db.session.add(usuario)
     db.session.commit()
 
-    return usuario_a_dict(usuario), 201
+    return usuario_schema.dump(usuario), 201
 
 
 @blueprint.route('/users', methods=['GET'])
 @autenticar
-def list():
+def list(payload):
     usuarios = Usuario.query.all()
 
-    respuesta = []
-
-    for usuario in usuarios:
-        respuesta.append(usuario_a_dict(usuario))
-
-    return jsonify(respuesta), 200
+    return jsonify(usuario_schema.dump(usuarios, many=True)), 200
 
 
 @blueprint.route('/users/<id>', methods=['GET'])
-def view(id):
-    check_response = check_token()
-    if check_response is False:
-        return 'Unauthorized', 401
-
-    if str(check_response['sub']) != str(id):
+@autenticar
+def view(payload, id):
+    if str(payload['sub']) != str(id):
         return 'Forbidden', 403
 
     usuario = Usuario.query.get_or_404(id)
 
-    return usuario_a_dict(usuario), 200
+    return usuario_schema.dump(usuario), 200
 
 
 @blueprint.route('/users/<id>', methods=['PUT'])
-def update(id):
-    if check_token() is False:
-        return 'Unauthorized', 401
-
+@autenticar
+def update(payload, id):
     usuario = Usuario.query.get_or_404(id)
-    datos = request.get_json()
-
-    usuario.nombre = datos['nombre']
-    usuario.password = datos['password']
-    usuario.correo = datos['correo']
+    usuario = usuario_schema.load(
+        data=request.json, instance=usuario, partial=False)
 
     db.session.add(usuario)
     db.session.commit()
 
-    return usuario_a_dict(usuario), 200
+    return usuario_schema.dump(usuario), 200
 
 
 @blueprint.route('/users/<id>', methods=['PATCH'])
-def patch(id):
-    if check_token() is False:
-        return 'Unauthorized', 401
-
+@autenticar
+def patch(payload, id):
     usuario = Usuario.query.get_or_404(id)
-    datos = request.get_json()
-
-    usuario.nombre = datos.get('nombre', usuario.nombre)
-    usuario.password = datos.get('password', usuario.password)
-    usuario.correo = datos.get('correo', usuario.correo)
+    usuario = usuario_schema.load(
+        data=request.json, instance=usuario, partial=True)
 
     db.session.add(usuario)
     db.session.commit()
 
-    return usuario_a_dict(usuario), 200
+    return usuario_schema.dump(usuario), 200
 
 
 @blueprint.route('/users/<id>', methods=['DELETE'])
-def delete(id):
-    if check_token() is False:
-        return 'Unauthorized', 401
-
+@autenticar
+def delete(payload, id):
     usuario = Usuario.query.get_or_404(id)
 
     db.session.delete(usuario)
@@ -147,7 +122,11 @@ def login():
 
     payload = {
         'sub': usuario.id,
+        'name': usuario.nombre,
         'iat': datetime.datetime.now()
     }
 
-    return jwt.encode(payload, '123456', algorithm='HS256')
+    return jwt.encode(
+        payload,
+        current_app.config['SECRET'],
+        algorithm='HS256')
