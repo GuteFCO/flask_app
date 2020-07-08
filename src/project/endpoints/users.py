@@ -1,8 +1,9 @@
 import datetime
 import jwt
+import marshmallow
 from functools import wraps
 from flask import request, jsonify, Blueprint, current_app
-from project import db
+from project import db, bcrypt
 from project.models import Usuario
 from project.schemas import usuario_schema, empresa_schema
 
@@ -115,9 +116,12 @@ def login():
     correo = datos['correo']
     password = datos['password']
 
-    usuario = Usuario.query.filter_by(correo=correo, password=password).first()
+    usuario = Usuario.query.filter_by(correo=correo).first()
 
     if usuario is None:
+        return 'Not found', 404
+
+    if bcrypt.check_password_hash(usuario.password, password) is False:
         return 'Not found', 404
 
     payload = {
