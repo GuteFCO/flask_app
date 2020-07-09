@@ -134,3 +134,11 @@ def login():
         payload,
         current_app.config['SECRET'],
         algorithm='HS256')
+
+
+@blueprint.route('/token', methods=['GET'])
+@autenticar
+def usuario(payload):
+    usuario = Usuario.query.get_or_404(payload['sub'])
+
+    return usuario_schema.dump(usuario), 200
