@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_marshmallow import Marshmallow
 from flask_bcrypt import Bcrypt
+from flask_cors import CORS
 from project.configs import Config
 
 
@@ -29,6 +30,7 @@ def register_error_handler(app):
 
 def create_app():
     app = Flask(__name__)
+    CORS(app)
     app.config.from_object(Config)
 
     db.init_app(app)
